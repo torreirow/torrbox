@@ -5,14 +5,18 @@
 
 # Function to display usage information
 show_usage() {
-    echo "Usage: $0 -u <website_url> -c <cookie_file> [-b <browser>] [-o <output_file>]"
+    echo "Usage: $0 -u <website_url> [-c <cookie_file> | -b <browser>] [-o <output_file>]"
     echo "Options:"
     echo "  -u <url>      Website URL containing the streams"
     echo "  -c <file>     Cookie file (exported from browser)"
     echo "  -b <browser>  Browser to use for cookie extraction (chrome, firefox, edge, safari)"
-    echo "                If not specified, will try to detect from cookie file"
+    echo "  -p <profile>  Browser profile to use (default: use the default profile)"
     echo "  -o <file>     Output file to save stream URLs (default: streams.txt)"
     echo "  -h            Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 -u https://example.com/video -b chrome"
+    echo "  $0 -u https://example.com/video -b firefox -p default"
 }
 
 # Function to check if required tools are installed
@@ -30,6 +34,19 @@ check_requirements() {
     if ! command -v jq &> /dev/null; then
         echo "Warning: jq is not installed. JSON parsing may be less reliable."
         echo "Consider installing jq for better results: https://stedolan.github.io/jq/download/"
+    fi
+    
+    if [[ -n "$browser" && -z "$cookie_file" ]]; then
+        if ! command -v python3 &> /dev/null; then
+            echo "Error: python3 is required for browser cookie extraction."
+            exit 1
+        fi
+        
+        if ! python3 -c "import browser_cookie3" &> /dev/null; then
+            echo "Error: browser_cookie3 Python module is not installed."
+            echo "Please install it with: pip install browser-cookie3"
+            exit 1
+        fi
     fi
 }
 
@@ -51,45 +68,108 @@ validate_url() {
 
 # Function to extract cookies from browser
 extract_cookies() {
-    local browser="$1"
-    local cookie_file="$2"
+    local browser_name="$1"
+    local profile="$2"
+    local cookie_file="$3"
     local temp_cookies="$temp_dir/cookies.txt"
     
-    case "$browser" in
-        chrome|chromium)
-            if command -v sqlite3 &> /dev/null; then
-                echo "Extracting cookies from Chrome/Chromium..."
-                # This is a simplified example - actual implementation would be more complex
-                echo "Error: Direct Chrome cookie extraction not implemented."
-                echo "Please export cookies manually using a browser extension."
-                exit 1
-            else
-                echo "Error: sqlite3 is required to extract Chrome cookies."
-                exit 1
-            fi
-            ;;
-        firefox)
-            if command -v sqlite3 &> /dev/null; then
-                echo "Extracting cookies from Firefox..."
-                echo "Error: Direct Firefox cookie extraction not implemented."
-                echo "Please export cookies manually using a browser extension."
-                exit 1
-            else
-                echo "Error: sqlite3 is required to extract Firefox cookies."
-                exit 1
-            fi
-            ;;
-        *)
-            # If browser not specified or not supported, assume cookie file is already in correct format
-            if [[ -f "$cookie_file" ]]; then
-                cp "$cookie_file" "$temp_cookies"
-                return 0
-            else
-                echo "Error: Cookie file not found: $cookie_file"
-                exit 1
-            fi
-            ;;
-    esac
+    # If cookie file is provided, use it directly
+    if [[ -n "$cookie_file" ]]; then
+        if [[ -f "$cookie_file" ]]; then
+            cp "$cookie_file" "$temp_cookies"
+            echo "Using provided cookie file: $cookie_file"
+            return 0
+        else
+            echo "Error: Cookie file not found: $cookie_file"
+            exit 1
+        fi
+    fi
+    
+    # Otherwise extract from browser using browser_cookie3
+    if [[ -n "$browser_name" ]]; then
+        echo "Extracting cookies from $browser_name browser..."
+        
+        # Create a Python script to extract cookies
+        cat > "$temp_dir/extract_cookies.py" << EOF
+import browser_cookie3
+import sys
+import os
+import json
+import http.cookiejar
+
+def extract_cookies(browser_name, domain, profile=None):
+    try:
+        if browser_name.lower() == 'chrome':
+            if profile:
+                cookies = browser_cookie3.chrome(domain_name=domain, profile_name=profile)
+            else:
+                cookies = browser_cookie3.chrome(domain_name=domain)
+        elif browser_name.lower() == 'firefox':
+            if profile:
+                cookies = browser_cookie3.firefox(domain_name=domain, profile_name=profile)
+            else:
+                cookies = browser_cookie3.firefox(domain_name=domain)
+        elif browser_name.lower() == 'edge':
+            if profile:
+                cookies = browser_cookie3.edge(domain_name=domain, profile_name=profile)
+            else:
+                cookies = browser_cookie3.edge(domain_name=domain)
+        elif browser_name.lower() == 'safari':
+            cookies = browser_cookie3.safari(domain_name=domain)
+        else:
+            print(f"Error: Unsupported browser: {browser_name}")
+            return False
+            
+        # Convert to Netscape format (curl compatible)
+        with open(sys.argv[1], 'w') as f:
+            f.write("# Netscape HTTP Cookie File\n")
+            for cookie in cookies:
+                if not cookie.value:
+                    continue
+                secure = "TRUE" if cookie.secure else "FALSE"
+                http_only = "TRUE" if cookie.has_nonstandard_attr('HttpOnly') else "FALSE"
+                expires = int(cookie.expires) if cookie.expires else 0
+                f.write(f"{cookie.domain}\t{'TRUE' if cookie.domain.startswith('.') else 'FALSE'}\t{cookie.path}\t{secure}\t{expires}\t{cookie.name}\t{cookie.value}\n")
+        return True
+    except Exception as e:
+        print(f"Error extracting cookies: {e}")
+        return False
+
+if __name__ == "__main__":
+    if len(sys.argv) < 4:
+        print("Usage: python extract_cookies.py <output_file> <browser> <domain> [profile]")
+        sys.exit(1)
+        
+    output_file = sys.argv[1]
+    browser = sys.argv[2]
+    domain = sys.argv[3]
+    profile = sys.argv[4] if len(sys.argv) > 4 else None
+    
+    success = extract_cookies(browser, domain, profile)
+    sys.exit(0 if success else 1)
+EOF
+        
+        # Extract domain from URL
+        domain=$(echo "$website_url" | sed -E 's|^https?://([^/]+).*|\1|')
+        
+        # Run the Python script
+        if [[ -n "$profile" ]]; then
+            python3 "$temp_dir/extract_cookies.py" "$temp_cookies" "$browser_name" "$domain" "$profile"
+        else
+            python3 "$temp_dir/extract_cookies.py" "$temp_cookies" "$browser_name" "$domain"
+        fi
+        
+        if [[ $? -ne 0 || ! -s "$temp_cookies" ]]; then
+            echo "Error: Failed to extract cookies from $browser_name"
+            exit 1
+        fi
+        
+        echo "Successfully extracted cookies from $browser_name for domain $domain"
+        return 0
+    else
+        echo "Error: No cookie source specified (neither file nor browser)"
+        exit 1
+    fi
 }
 
 # Function to extract stream URLs from a webpage
@@ -225,13 +305,14 @@ extract_stream_urls() {
 website_url=""
 cookie_file=""
 browser=""
+profile=""
 output_file="streams.txt"
 
 # Check for required tools
 check_requirements
 
 # Process command line arguments
-while getopts "u:c:b:o:h" opt; do
+while getopts "u:c:b:p:o:h" opt; do
     case ${opt} in
         u )
             website_url="$OPTARG"
@@ -241,6 +322,9 @@ while getopts "u:c:b:o:h" opt; do
             ;;
         b )
             browser="$OPTARG"
+            ;;
+        p )
+            profile="$OPTARG"
             ;;
         o )
             output_file="$OPTARG"
@@ -271,11 +355,38 @@ if [[ -z "$website_url" ]]; then
     fi
 fi
 
-# If cookie file is not provided, ask for it
-if [[ -z "$cookie_file" ]]; then
-    read -p "Enter path to cookie file: " cookie_file
-    if [[ ! -f "$cookie_file" ]]; then
-        echo "Error: Cookie file not found: $cookie_file"
+# If neither cookie file nor browser is provided, ask for one
+if [[ -z "$cookie_file" && -z "$browser" ]]; then
+    echo "Cookie source not specified. Choose an option:"
+    echo "1. Use a cookie file"
+    echo "2. Extract cookies from browser"
+    read -p "Enter choice (1/2): " cookie_choice
+    
+    if [[ "$cookie_choice" == "1" ]]; then
+        read -p "Enter path to cookie file: " cookie_file
+        if [[ ! -f "$cookie_file" ]]; then
+            echo "Error: Cookie file not found: $cookie_file"
+            exit 1
+        fi
+    elif [[ "$cookie_choice" == "2" ]]; then
+        echo "Available browsers:"
+        echo "1. Chrome"
+        echo "2. Firefox"
+        echo "3. Edge"
+        echo "4. Safari"
+        read -p "Enter browser choice (1-4): " browser_choice
+        
+        case "$browser_choice" in
+            1) browser="chrome" ;;
+            2) browser="firefox" ;;
+            3) browser="edge" ;;
+            4) browser="safari" ;;
+            *) echo "Invalid choice"; exit 1 ;;
+        esac
+        
+        read -p "Enter browser profile (leave empty for default): " profile
+    else
+        echo "Invalid choice"
         exit 1
     fi
 fi
@@ -287,8 +398,8 @@ echo "Created temporary directory: $temp_dir"
 # Trap to ensure cleanup on exit
 trap 'echo "Cleaning up temporary files..."; rm -rf "$temp_dir"' EXIT
 
-# Extract cookies if needed
-extract_cookies "$browser" "$cookie_file"
+# Extract cookies
+extract_cookies "$browser" "$profile" "$cookie_file"
 
 # Extract stream URLs
 extract_stream_urls "$website_url" "$cookie_file" "$output_file"
