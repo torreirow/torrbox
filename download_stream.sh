@@ -1,11 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Script to download video, audio, and subtitle streams and combine them using ffmpeg
-# Usage: ./download_stream.sh [video_url] [audio_url] [subtitle_url] [output_filename]
+# Usage: ./download_stream.sh -v video_url -a audio_url -s subtitle_url -o output_filename
 
 # Function to display usage information
 show_usage() {
-    echo "Usage: $0 [video_url] [audio_url] [subtitle_url] [output_filename]"
+    echo "Usage: $0 -v <video_url> -a <audio_url> -s <subtitle_url> -o <output_filename>"
+    echo "Options:"
+    echo "  -v <url>    Video stream URL"
+    echo "  -a <url>    Audio stream URL"
+    echo "  -s <url>    Subtitle stream URL"
+    echo "  -o <file>   Output filename"
+    echo "  -h          Show this help message"
     echo "If parameters are not provided, you will be prompted for them."
 }
 
@@ -43,21 +49,36 @@ subtitle_url=""
 output_file=""
 
 # Process command line arguments
-if [[ $# -ge 1 ]]; then
-    video_url="$1"
-fi
-
-if [[ $# -ge 2 ]]; then
-    audio_url="$2"
-fi
-
-if [[ $# -ge 3 ]]; then
-    subtitle_url="$3"
-fi
-
-if [[ $# -ge 4 ]]; then
-    output_file="$4"
-fi
+while getopts "v:a:s:o:h" opt; do
+    case ${opt} in
+        v )
+            video_url="$OPTARG"
+            ;;
+        a )
+            audio_url="$OPTARG"
+            ;;
+        s )
+            subtitle_url="$OPTARG"
+            ;;
+        o )
+            output_file="$OPTARG"
+            ;;
+        h )
+            show_usage
+            exit 0
+            ;;
+        \? )
+            echo "Invalid option: $OPTARG" 1>&2
+            show_usage
+            exit 1
+            ;;
+        : )
+            echo "Invalid option: $OPTARG requires an argument" 1>&2
+            show_usage
+            exit 1
+            ;;
+    esac
+done
 
 # If video URL is not provided, ask for it
 if [[ -z "$video_url" ]]; then
@@ -95,18 +116,20 @@ if [[ -z "$output_file" ]]; then
     fi
 fi
 
-# Create temporary directory
+# Create temporary directory with unique name
 temp_dir=$(mktemp -d)
 echo "Created temporary directory: $temp_dir"
 
+# Trap to ensure cleanup on exit
+trap 'echo "Cleaning up temporary files..."; rm -rf "$temp_dir"' EXIT
+
 # Download video stream
 echo "Downloading video stream..."
-video_file="$temp_dir/video.mp4"
+video_file="$temp_dir/video_$(date +%s%N).mp4"
 ffmpeg -y -i "$video_url" -c copy "$video_file"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to download video stream"
-    rm -rf "$temp_dir"
     exit 1
 fi
 
@@ -114,12 +137,11 @@ fi
 audio_file=""
 if [[ -n "$audio_url" ]]; then
     echo "Downloading audio stream..."
-    audio_file="$temp_dir/audio.aac"
+    audio_file="$temp_dir/audio_$(date +%s%N).aac"
     ffmpeg -y -i "$audio_url" -c copy "$audio_file"
     
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to download audio stream"
-        rm -rf "$temp_dir"
         exit 1
     fi
 fi
@@ -128,7 +150,7 @@ fi
 subtitle_file=""
 if [[ -n "$subtitle_url" ]]; then
     echo "Downloading subtitle stream..."
-    subtitle_file="$temp_dir/subtitle.srt"
+    subtitle_file="$temp_dir/subtitle_$(date +%s%N).srt"
     ffmpeg -y -i "$subtitle_url" "$subtitle_file"
     
     if [[ $? -ne 0 ]]; then
@@ -164,11 +186,7 @@ eval $ffmpeg_cmd
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to combine streams"
-    rm -rf "$temp_dir"
     exit 1
 fi
 
-# Clean up
-rm -rf "$temp_dir"
-echo "Temporary files cleaned up"
 echo "Successfully created: $output_file"
