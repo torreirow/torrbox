@@ -5,20 +5,27 @@
 
 # Function to display usage information
 show_usage() {
-    echo "Usage: $0 -v <video_url> -a <audio_url> -s <subtitle_url> -o <output_filename>"
+    echo "Usage: $0 -v <video_url> -a <audio_url> -s <subtitle_url> -o <output_filename> [-w]"
     echo "Options:"
     echo "  -v <url>    Video stream URL"
     echo "  -a <url>    Audio stream URL"
     echo "  -s <url>    Subtitle stream URL"
     echo "  -o <file>   Output filename"
+    echo "  -w          Use OpenAI Whisper to generate subtitles if none provided"
     echo "  -h          Show this help message"
     echo "If parameters are not provided, you will be prompted for them."
 }
 
-# Function to check if ffmpeg is installed
-check_ffmpeg() {
+# Function to check if required tools are installed
+check_requirements() {
     if ! command -v ffmpeg &> /dev/null; then
         echo "Error: ffmpeg is not installed. Please install it first."
+        exit 1
+    fi
+    
+    if [[ "$use_whisper" == true ]] && ! command -v whisper &> /dev/null; then
+        echo "Error: OpenAI Whisper is not installed but -w flag was used."
+        echo "Please install it with: pip install openai-whisper"
         exit 1
     fi
 }
@@ -39,17 +46,21 @@ validate_url() {
     return 0
 }
 
-# Check for ffmpeg
-check_ffmpeg
+# Initialize whisper flag
+use_whisper=false
 
 # Initialize variables
 video_url=""
 audio_url=""
 subtitle_url=""
 output_file=""
+use_whisper=false
+
+# Check for required tools
+check_requirements
 
 # Process command line arguments
-while getopts "v:a:s:o:h" opt; do
+while getopts "v:a:s:o:wh" opt; do
     case ${opt} in
         v )
             video_url="$OPTARG"
@@ -62,6 +73,9 @@ while getopts "v:a:s:o:h" opt; do
             ;;
         o )
             output_file="$OPTARG"
+            ;;
+        w )
+            use_whisper=true
             ;;
         h )
             show_usage
@@ -104,6 +118,20 @@ if [[ -z "$subtitle_url" ]]; then
     if [[ -n "$subtitle_url" ]] && ! validate_url "$subtitle_url"; then
         echo "Error: Invalid subtitle URL"
         exit 1
+    fi
+    
+    # If still no subtitle URL and whisper flag not set, ask about using whisper
+    if [[ -z "$subtitle_url" && "$use_whisper" == false ]]; then
+        read -p "Would you like to generate subtitles using OpenAI Whisper? (y/n): " use_whisper_response
+        if [[ "$use_whisper_response" == [yY] || "$use_whisper_response" == [yY][eE][sS] ]]; then
+            use_whisper=true
+            # Check if whisper is installed
+            if ! command -v whisper &> /dev/null; then
+                echo "Error: OpenAI Whisper is not installed."
+                echo "Please install it with: pip install openai-whisper"
+                exit 1
+            fi
+        fi
     fi
 fi
 
@@ -156,6 +184,54 @@ if [[ -n "$subtitle_url" ]]; then
     if [[ $? -ne 0 ]]; then
         echo "Warning: Failed to download subtitle stream, continuing without subtitles"
         subtitle_file=""
+    fi
+# Generate subtitles using Whisper if requested
+elif [[ "$use_whisper" == true ]]; then
+    echo "Generating subtitles using OpenAI Whisper..."
+    
+    # We need audio for whisper
+    whisper_audio_file="$audio_file"
+    
+    # If no separate audio file, extract audio from video
+    if [[ -z "$whisper_audio_file" ]]; then
+        whisper_audio_file="$temp_dir/extracted_audio_$(date +%s%N).wav"
+        echo "Extracting audio from video for subtitle generation..."
+        ffmpeg -y -i "$video_file" -vn -acodec pcm_s16le -ar 16000 -ac 1 "$whisper_audio_file"
+        
+        if [[ $? -ne 0 ]]; then
+            echo "Warning: Failed to extract audio for subtitle generation, continuing without subtitles"
+            use_whisper=false
+        fi
+    fi
+    
+    if [[ "$use_whisper" == true ]]; then
+        echo "Running Whisper for subtitle generation..."
+        subtitle_file="$temp_dir/subtitle_$(date +%s%N).srt"
+        
+        # Change to temp directory to run whisper
+        current_dir=$(pwd)
+        cd "$temp_dir"
+        
+        # Run whisper
+        whisper --model base --output_format srt --output_dir ./ --language en --fp16 False --task transcribe --word_timestamps True --max_line_width 42 --max_line_count 2 "$whisper_audio_file"
+        
+        if [[ $? -ne 0 ]]; then
+            echo "Warning: Failed to generate subtitles with Whisper, continuing without subtitles"
+            subtitle_file=""
+        else
+            # Find the generated srt file (whisper names it after the input file)
+            whisper_output=$(find ./ -name "*.srt" | head -n 1)
+            if [[ -n "$whisper_output" ]]; then
+                mv "$whisper_output" "$subtitle_file"
+                echo "Successfully generated subtitles with Whisper"
+            else
+                echo "Warning: Could not find generated subtitle file, continuing without subtitles"
+                subtitle_file=""
+            fi
+        fi
+        
+        # Return to original directory
+        cd "$current_dir"
     fi
 fi
 
