@@ -126,7 +126,7 @@ trap 'echo "Cleaning up temporary files..."; rm -rf "$temp_dir"' EXIT
 # Download video stream
 echo "Downloading video stream..."
 video_file="$temp_dir/video_$(date +%s%N).mp4"
-ffmpeg -y -i "$video_url" -c copy "$video_file"
+ffmpeg -y -protocol_whitelist file,http,https,tcp,tls,crypto -i "$video_url" -c copy "$video_file"
 
 if [[ $? -ne 0 ]]; then
     echo "Error: Failed to download video stream"
@@ -138,7 +138,7 @@ audio_file=""
 if [[ -n "$audio_url" ]]; then
     echo "Downloading audio stream..."
     audio_file="$temp_dir/audio_$(date +%s%N).aac"
-    ffmpeg -y -i "$audio_url" -c copy "$audio_file"
+    ffmpeg -y -protocol_whitelist file,http,https,tcp,tls,crypto -i "$audio_url" -c copy "$audio_file"
     
     if [[ $? -ne 0 ]]; then
         echo "Error: Failed to download audio stream"
