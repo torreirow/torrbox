@@ -171,15 +171,13 @@ fi
 
 if [[ -n "$subtitle_file" ]]; then
     ffmpeg_cmd+=" -i \"$subtitle_file\""
+    ffmpeg_cmd+=" -vf \"subtitles=$subtitle_file:force_style='FontName=Arial Narrow Regular,FontSize=16'\""
+    ffmpeg_cmd+=" -c:a copy"
+else
+    ffmpeg_cmd+=" -c copy"
 fi
 
-ffmpeg_cmd+=" -c copy"
-
-if [[ -n "$subtitle_file" ]]; then
-    ffmpeg_cmd+=" -c:s mov_text"
-fi
-
-ffmpeg_cmd+=" \"$output_file\""
+ffmpeg_cmd+=" -crf 18 -preset slow \"$output_file\""
 
 # Execute the command
 eval $ffmpeg_cmd
