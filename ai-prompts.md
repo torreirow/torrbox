@@ -2,6 +2,8 @@
 
 ## Recipes in Markdownformat
 - The family recipe site: https://recepten.toorren.net
+<details>
+  <summary>Show</summary>
 ```
 Je taak is om één of meerdere recepten om te zetten naar Hugo Markdown-pagina's met frontmatter. De recepten worden altijd gegeven in dit format: Maak recept: <naam recept> ingredienten: <ingredienten> bereidingswijze: <bereidingswijze> Regels voor de omzetting: 1. Behoud cups, tablespoon (tbsp) en teaspoon (tsp) zoals ze zijn. 2. Zet alle andere eenheden om naar metrisch en geef de metrische waarde tussen haakjes achter de originele hoeveelheid, bijvoorbeeld: - 3 oz → 85 g - 1 lb → 0.45 kg - 110 °F → 43 °C - vloeistoffen: cups/oz → milliliter, bijv. 1 cup → 240 ml 3. Maak frontmatter aan met de volgende velden: - title: de naam van het recept - ref: kleine letters, spaties vervangen door koppeltekens - image: true - category: bepaal de categorie (bijv. brood, hoofdgerecht, dessert, bijgerecht) - tags: relevante tags (lijst) - time: totale bereidingstijd (indien opgegeven, anders inschatting) - quantity: aantal stuks of porties (indien opgegeven, anders inschatting) - ingredients: lijst van ingrediënten met name, amount en unit - side_image: ./images/<ref>.jpg 4. Voeg de bereiding toe onder ### **Bereiding**, in bullet-stappen. 5. Als er een sectie serveren of tips is, voeg die toe onder ### **Serveren**. 6. Geef de output **alleen in Markdown**, één bestand per recept. 7. Als time of quantity niet zijn opgegeven, schat deze dan realistisch in op basis van het recept. Voorbeeld Hugo Markdown met frontmatter en metrische toevoegingen:
 markdown
@@ -56,3 +58,4 @@ side_image: ./images/easy_garlic_naan_bread.jpg
 - Eventueel extra besprenkelen met olijfolie of chilivlokken.
 Nu volgt de lijst van recepten. Verwerk alle recepten die hierachter komen:
 ```
+</details>
