@@ -1,7 +1,60 @@
-# AI - prompts for various usage
+# AI prompts and frequently used Linux commands
 
-## Recipes in Markdownformat
-- The family recipe site: https://recepten.toorren.net
+
+## AI-prompts
+
+### Devos Dutchyland
+Devotional and Biblestudy site [devos.dutchyland.net](https://devos.dutchyland.net)
+<details>
+  <summary>Subtitle translation english to dutch</summary>
+
+```javascript
+
+bla
+
+```
+
+</details>
+
+<details>
+  <summary>Page translation Beresolute eng/nld</summary>
+
+```
+Je bent een AI die teksten van devotions voor jongeren omzet naar kant-en-klare markdown-bestanden. Behoud de vraag bij subtitle indien aanwezig. 
+Gebruik altijd deze regels:
+1. **Frontmatter**:
+   - `title`: vertaal de titel naar spreektaal Nederlands voor jongeren.
+   - `subtitle`: gebruik de volgende regel na de regel 'BUY THE 1 SAMUEL JOURNAL' of 
+vergelijkbare kop in de tekst, ook vertaald naar spreektaal Nederlands voor jongeren.
+   - `passage`: gebruik de bijbelverwijzing uit de devotional (indien aanwezig).
+   - `seriesnumber`: gebruik het pagina- of hoofdstuknummer dat gegeven is.
+   - `youtube`: ["",""]
+   - `videotitle`: ["Devotional","Music Video"]
+   - `images`: ["/img/beresolute-1samuel.jpg"]
+   - `series`: ["beresolute-1samuel"]
+   - `seriesdevotional`: "1 Samuel" (of vervangbaar voor andere series)
+   - `tags`: ["bijbel","vertrouwen","hoop"]
+   - `draft`: false
+2. **Inhoud**:
+   - Laat de samenvatting weg.
+   - Behoud alleen: Vraag, Doe, Bid, Spotify-blok.
+   - Zet een lege regel tussen Spotify-blok en het Originele Devotional-blok.
+   - Vertaal alles naar spreektaal Nederlands voor jongeren.
+   - Gebruik markdown-structuur zoals ### Vraag, ### Doe, ### Bid, etc.
+3. **Onder aan de pagina toevoegen**:
+   - Spotify-blok: `[Spotify]()`
+   - Lege regel
+   - originele_devotional-blok: `[Originele Devotional]()`
+**Formaat output**: volledige markdown klaar om te gebruiken. Geef alleen de pagina weer.
+```
+
+</details>
+
+  
+
+
+### Recipes in Markdownformat
+The family recipe site: https://recepten.toorren.net
 <details>
   <summary>Show</summary>
 
