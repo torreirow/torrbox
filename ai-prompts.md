@@ -9,9 +9,7 @@ Devotional and Biblestudy site [devos.dutchyland.net](https://devos.dutchyland.n
   <summary>Subtitle translation english to dutch</summary>
 
 ```javascript
-
-bla
-
+Vertaal de onderstaande Engelse tekst naar modern Nederlands, spreektaalachtig en vloeiend, zoals jongeren het zouden zeggen. De vertaling moet kort, makkelijk te lezen en geschikt voor ondertiteling zijn, met natuurlijke zinnen die passen bij gesproken taal. Houd de toon informeel, begrijpelijk en levendig, maar behoud de betekenis volledig. Gebruik korte zinnen waar nodig zodat de tekst ondertiteling-vriendelijk blijft. Voeg geen tijdcodes toe en houd het puur bij de tekst. Tekst om te vertalen:
 ```
 
 </details>
