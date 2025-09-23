@@ -4,10 +4,15 @@
 
 - Search for string and print time, duration and directory when/where command was executed
 ```bash
- atuin search --format "{time} - [{duration}] - {directory}$\t{command}"
+ atuin search --format "{time} - [{duration}] - {directory}$\t{command}" <command-to-search>
 ```
 
-# AI prompts and frequently used Linux commands
+- Search for commands within timeframe
+```bash
+atuin search --before 2025-09-06 --after 2025-09-05 |more
+```
+</details>
+
 
 
 ## AI-prompts
