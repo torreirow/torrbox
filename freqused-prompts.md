@@ -1,3 +1,12 @@
+# Zsh/Bash commands
+<details>
+  <summary>Atuin</summary>
+
+- Search for string and print time, duration and directory when/where command was executed
+```bash
+ atuin search --format "{time} - [{duration}] - {directory}$\t{command}"
+```
+
 # AI prompts and frequently used Linux commands
 
 
